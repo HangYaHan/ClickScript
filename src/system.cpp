@@ -95,219 +95,210 @@ void System::executeChoice(int choice)
 
 void System::startAutoclickScript()
 {
-    std::cout << "Starting Autoclick script..." << std::endl;
+    MyLogger::getInstance().splitLine();
     MyLogger::getInstance().info("Autoclick script started.");
 
-    // TODO: Implement autoclick script logic
-    std::cout << "Autoclick script completed." << std::endl;
+    // === Load ClickScript ===
+
+    ClickScript ClickScript;
+
+    std::cout << "Please enter the task to be loaded (e.g., task1.clk --- default: task.clk): ";
+    std::string filename;
+    std::getline(std::cin, filename);
+    if (filename.empty())
+    {
+        filename = "task.clk";
+        std::cout << "No input detected. Using default: " << filename << std::endl;
+    }
+
+    int loops = 0;
+
+    ClickScript.load_ClickScript_fromfile(filename);
+    loops = ClickScript.get_loops();
+    ClickScript.print_ClickScript();
+    MyLogger::getInstance().info("Autoclick script loaded.");
+
+    // Get console window handle
+    g_consoleWindow = GetConsoleWindow();
+    if (g_consoleWindow == NULL)
+    {
+        std::cerr << "Failed to get console window handle!" << std::endl;
+        MyLogger::getInstance().error("Failed to get console window handle!");
+        return;
+    }
+
+    // Initialize taskbar progress interface
+    bool taskbarInitialized = initializeTaskbarProgress();
+    if (!taskbarInitialized)
+    {
+        std::cerr << "Failed to initialize taskbar progress!" << std::endl;
+        MyLogger::getInstance().error("Failed to initialize taskbar progress!");
+        MyLogger::getInstance().warning("Continuing without taskbar progress.");
+        // Continue execution without progress bar
+    }
+
+    // ===== Initialize emergency stop listener =====
+    // Reset emergency stop flag
+    g_emergencyStop.store(false);
+
+    // Start ESC key listener thread
+    std::thread escapeThread(&System::escapeKeyListener, this);
+    escapeThread.detach(); // Detach thread to run in background
+
+    std::cout << std::endl
+              << "=== EMERGENCY STOP ENABLED ===" << std::endl;
+    std::cout << "Press ESC key at any time to immediately stop the procedure!" << std::endl;
+    MyLogger::getInstance().info("Emergency stop monitor activated - Press ESC to stop");
+
+    // Set total progress and current progress
+    g_totalProgress.store(loops);
+    g_currentProgress.store(0);
+
+    // Set running flag
+    g_isRunning.store(true);
+
+    // Set taskbar progress state to normal (green)
+    if (taskbarInitialized)
+    {
+        setTaskbarProgressState(TBPF_NORMAL);
+    }
+
+    std::cout << "ISC procedure will execute " << loops << " rounds." << std::endl
+              << std::endl;
+
+    MyLogger::getInstance().splitLine();
+    MyLogger::getInstance().info("ISC procedure will execute " + std::to_string(loops) + " rounds.");
+
+    // ===== Execute loop and update progress =====
+    std::cout << "Press Enter to start after 3 seconds...";
+    getchar();
+    countdown(3);
+    bool completedNormally = true;
+
+    for (int i = 0; i < loops; i++)
+    {
+        // ===== Check emergency stop flag =====
+        if (g_emergencyStop.load())
+        {
+            std::cout << "\n!!! EMERGENCY STOP TRIGGERED !!!" << std::endl;
+            std::cout << "ISC procedure stopped by user (ESC key)!" << std::endl;
+            MyLogger::getInstance().warning("ISC procedure emergency stopped at round " + std::to_string(i + 1));
+
+            // Set progress bar to error state (red)
+            if (taskbarInitialized)
+            {
+                setTaskbarProgressState(TBPF_ERROR);
+            }
+
+            completedNormally = false;
+            break;
+        }
+
+        // Check normal interrupt flag
+        if (!g_isRunning.load())
+        {
+            std::cout << "ISC procedure interrupted!" << std::endl;
+            MyLogger::getInstance().info("ISC procedure interrupted at round " + std::to_string(i + 1));
+
+            if (taskbarInitialized)
+            {
+                setTaskbarProgressState(TBPF_PAUSED);
+            }
+
+            completedNormally = false;
+            break;
+        }
+
+        std::cout << "=== Executing ClickScript round " << (i + 1) << " of " << loops << " ===" << std::endl;
+        std::cout << "Press ESC to emergency stop..." << std::endl;
+
+        MyLogger::getInstance().debug("=== Executing ClickScript round " + std::to_string(i + 1) + " of " + std::to_string(loops) + " ===");
+
+        // Update progress
+        g_currentProgress.store(i + 1);
+        if (taskbarInitialized)
+        {
+            updateTaskbarProgress(i + 1, loops);
+        }
+
+        // Execute click script (this may take a long time, should support emergency stop inside)
+        if (!g_emergencyStop.load() && g_isRunning.load())
+        {
+            ClickScript.execute();
+        }
+        else
+        {
+            break; // Emergency stop check
+        }
+    }
+
+    // ===== Completion handling =====
+    if (completedNormally && g_isRunning.load() && !g_emergencyStop.load())
+    {
+        std::cout << "\n=== ALL ROUNDS COMPLETED SUCCESSFULLY! ===" << std::endl;
+        MyLogger::getInstance().info("All rounds completed successfully!");
+
+        // Set progress bar to completed state (green, 100%)
+        if (taskbarInitialized)
+        {
+            setTaskbarProgressState(TBPF_NORMAL);
+            updateTaskbarProgress(loops, loops);
+
+            // Keep completed state visible for 3 seconds
+            std::cout << "Keeping progress bar visible for 3 seconds..." << std::endl;
+            Sleep(3000);
+        }
+    }
+    else if (g_emergencyStop.load())
+    {
+        std::cout << "\n=== PROCEDURE TERMINATED BY EMERGENCY STOP ===" << std::endl;
+        MyLogger::getInstance().warning("Procedure terminated by emergency stop");
+
+        // Keep error state visible for 3 seconds
+        if (taskbarInitialized)
+        {
+            std::cout << "Emergency stop indication on taskbar for 3 seconds..." << std::endl;
+            Sleep(3000);
+        }
+    }
+
+    // ===== Cleanup progress bar =====
+    if (taskbarInitialized)
+    {
+        setTaskbarProgressState(TBPF_NOPROGRESS);
+    }
+    SetConsoleTitle("ISC - Ready");
+
+    // Stop all running flags
+    g_isRunning.store(false);
+    g_emergencyStop.store(true); // Notify emergency stop thread to exit
+
+    // Give emergency stop thread some time to exit naturally
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    // Cleanup COM interface
+    if (taskbarInitialized)
+    {
+        cleanupTaskbarProgress();
+    }
+
+    std::cout << "ISC procedure completed." << std::endl;
+    MyLogger::getInstance().info("ISC procedure completed.");
+    MyLogger::getInstance().splitLine();
+
+    // Reset console window handle
+    g_consoleWindow = nullptr;
+    // Reset taskbar list interface
+    if (g_pTaskbarList)
+    {
+        g_pTaskbarList->Release();
+        g_pTaskbarList = nullptr;
+    }
+    // Uninitialize COM
+    CoUninitialize();
+    MyLogger::getInstance().debug("Resources cleaned up.");
     MyLogger::getInstance().info("Autoclick script completed.");
 }
-
-// void System::startISCProcedure()
-// {
-//     MyLogger::getInstance().splitLine();
-//     std::cout << "Starting ISC procedure..." << std::endl;
-//     MyLogger::getInstance().info("ISC procedure started.");
-
-//     ClickScript clickScript;
-//     std::cout << "Please enter the task to be loaded (e.g., task1.clk --- default: task.clk): ";
-//     std::string filename;
-//     std::getline(std::cin, filename);
-//     if (filename.empty())
-//     {
-//         filename = "task.clk";
-//         std::cout << "No input detected. Using default: " << filename << std::endl;
-//     }
-
-//     int loops = 0;
-
-//     clickScript.load_ClickScript_fromfile(filename);
-//     loops = clickScript.get_loops();
-//     clickScript.print_ClickScript();
-
-//     std::cin.clear();
-//     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-
-//     countdown(3); // Countdown before starting the procedure
-
-//     // ===== Initialize taskbar progress bar =====
-//     // Get console window handle
-//     g_consoleWindow = GetConsoleWindow();
-//     if (g_consoleWindow == NULL)
-//     {
-//         std::cerr << "Failed to get console window handle!" << std::endl;
-//         MyLogger::getInstance().error("Failed to get console window handle!");
-//         return;
-//     }
-
-//     // Initialize taskbar progress interface
-//     bool taskbarInitialized = initializeTaskbarProgress();
-//     if (!taskbarInitialized)
-//     {
-//         std::cerr << "Failed to initialize taskbar progress!" << std::endl;
-//         MyLogger::getInstance().error("Failed to initialize taskbar progress!");
-//         MyLogger::getInstance().warning("Continuing without taskbar progress.");
-//         // Continue execution without progress bar
-//     }
-
-//     // ===== Initialize emergency stop listener =====
-//     // Reset emergency stop flag
-//     g_emergencyStop.store(false);
-
-//     // Start ESC key listener thread
-//     std::thread escapeThread(&System::escapeKeyListener, this);
-//     escapeThread.detach(); // Detach thread to run in background
-
-//     std::cout << "=== EMERGENCY STOP ENABLED ===" << std::endl;
-//     std::cout << "Press ESC key at any time to immediately stop the procedure!" << std::endl;
-//     MyLogger::getInstance().info("Emergency stop monitor activated - Press ESC to stop");
-
-//     // Set total progress and current progress
-//     g_totalProgress.store(loops);
-//     g_currentProgress.store(0);
-
-//     // Set running flag
-//     g_isRunning.store(true);
-
-//     // Set taskbar progress state to normal (green)
-//     if (taskbarInitialized)
-//     {
-//         setTaskbarProgressState(TBPF_NORMAL);
-//     }
-
-//     std::cout << "ISC procedure will execute " << loops << " rounds." << std::endl;
-//     std::cout << "Starting execution..." << std::endl;
-
-//     MyLogger::getInstance().splitLine();
-//     MyLogger::getInstance().info("ClickScript start now.");
-//     MyLogger::getInstance().info("ISC procedure will execute " + std::to_string(loops) + " rounds.");
-
-//     // ===== Execute loop and update progress =====
-//     bool completedNormally = true;
-
-//     for (int i = 0; i < loops; i++)
-//     {
-//         // ===== Check emergency stop flag =====
-//         if (g_emergencyStop.load())
-//         {
-//             std::cout << "\n!!! EMERGENCY STOP TRIGGERED !!!" << std::endl;
-//             std::cout << "ISC procedure stopped by user (ESC key)!" << std::endl;
-//             MyLogger::getInstance().warning("ISC procedure emergency stopped at round " + std::to_string(i + 1));
-
-//             // Set progress bar to error state (red)
-//             if (taskbarInitialized)
-//             {
-//                 setTaskbarProgressState(TBPF_ERROR);
-//             }
-
-//             completedNormally = false;
-//             break;
-//         }
-
-//         // Check normal interrupt flag
-//         if (!g_isRunning.load())
-//         {
-//             std::cout << "ISC procedure interrupted!" << std::endl;
-//             MyLogger::getInstance().info("ISC procedure interrupted at round " + std::to_string(i + 1));
-
-//             if (taskbarInitialized)
-//             {
-//                 setTaskbarProgressState(TBPF_PAUSED);
-//             }
-
-//             completedNormally = false;
-//             break;
-//         }
-
-//         std::cout << "=== Executing ClickScript round " << (i + 1) << " of " << loops << " ===" << std::endl;
-//         std::cout << "Press ESC to emergency stop..." << std::endl;
-
-//         MyLogger::getInstance().debug("=== Executing ClickScript round " + std::to_string(i + 1) + " of " + std::to_string(loops) + " ===");
-
-//         // Update progress
-//         g_currentProgress.store(i + 1);
-//         if (taskbarInitialized)
-//         {
-//             updateTaskbarProgress(i + 1, loops);
-//         }
-
-//         // Execute click script (this may take a long time, should support emergency stop inside)
-//         if (!g_emergencyStop.load() && g_isRunning.load())
-//         {
-//             clickScript.execute();
-//         }
-//         else
-//         {
-//             break; // Emergency stop check
-//         }
-//     }
-
-//     // ===== Completion handling =====
-//     if (completedNormally && g_isRunning.load() && !g_emergencyStop.load())
-//     {
-//         std::cout << "\n=== ALL ROUNDS COMPLETED SUCCESSFULLY! ===" << std::endl;
-//         MyLogger::getInstance().info("All rounds completed successfully!");
-
-//         // Set progress bar to completed state (green, 100%)
-//         if (taskbarInitialized)
-//         {
-//             setTaskbarProgressState(TBPF_NORMAL);
-//             updateTaskbarProgress(loops, loops);
-
-//             // Keep completed state visible for 3 seconds
-//             std::cout << "Keeping progress bar visible for 3 seconds..." << std::endl;
-//             Sleep(3000);
-//         }
-//     }
-//     else if (g_emergencyStop.load())
-//     {
-//         std::cout << "\n=== PROCEDURE TERMINATED BY EMERGENCY STOP ===" << std::endl;
-//         MyLogger::getInstance().warning("Procedure terminated by emergency stop");
-
-//         // Keep error state visible for 3 seconds
-//         if (taskbarInitialized)
-//         {
-//             std::cout << "Emergency stop indication on taskbar for 3 seconds..." << std::endl;
-//             Sleep(3000);
-//         }
-//     }
-
-//     // ===== Cleanup progress bar =====
-//     if (taskbarInitialized)
-//     {
-//         setTaskbarProgressState(TBPF_NOPROGRESS);
-//     }
-//     SetConsoleTitle("ISC - Ready");
-
-//     // Stop all running flags
-//     g_isRunning.store(false);
-//     g_emergencyStop.store(true); // Notify emergency stop thread to exit
-
-//     // Give emergency stop thread some time to exit naturally
-//     std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-//     // Cleanup COM interface
-//     if (taskbarInitialized)
-//     {
-//         cleanupTaskbarProgress();
-//     }
-
-//     std::cout << "ISC procedure completed." << std::endl;
-//     MyLogger::getInstance().info("ISC procedure completed.");
-//     MyLogger::getInstance().splitLine();
-
-//     // Reset console window handle
-//     g_consoleWindow = nullptr;
-//     // Reset taskbar list interface
-//     if (g_pTaskbarList)
-//     {
-//         g_pTaskbarList->Release();
-//         g_pTaskbarList = nullptr;
-//     }
-//     // Uninitialize COM
-//     CoUninitialize();
-//     MyLogger::getInstance().debug("Resources cleaned up.");
-// }
 
 void System::printMainMenu()
 {

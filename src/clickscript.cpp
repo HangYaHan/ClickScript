@@ -159,6 +159,7 @@ void ClickScript::print_ClickScript()
     system("cls");
     std::cout << "--- ClickScript Checklist ---" << std::endl;
     std::cout << "Loops: " << loops << std::endl;
+    std::cout << "---" << std::endl;
     for (const auto &behavior : behaviors)
     {
         switch (behavior.action)

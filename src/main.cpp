@@ -1,4 +1,8 @@
 // TODO: Description support for ClickScript
+// TODO: Log System
+// TODO: what if load task failed
+// TODO: make the countdown changeable
+// TODO: *clk* path support
 
 #define MAIN_RELEASE 1
 
