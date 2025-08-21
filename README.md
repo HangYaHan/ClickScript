@@ -12,6 +12,8 @@ ClickScript 最初是在实验室中为方便测试而编写的一个点击脚�
 
 ## 使用说明
 
+[github链接](https://github.com/HangYaHan/ClickScript)
+
 详细使用方法请参考：[./docs/Manual.md](./docs/Manual.md)
 
 演示视频：[https://www.example.com/demo](https://www.example.com/demo)（尚未录制）
