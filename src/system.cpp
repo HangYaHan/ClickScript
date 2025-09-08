@@ -163,11 +163,11 @@ void System::startAutoclickScript()
         setTaskbarProgressState(TBPF_NORMAL);
     }
 
-    std::cout << "ISC procedure will execute " << loops << " rounds." << std::endl
+    std::cout << "ClickScript procedure will execute " << loops << " rounds." << std::endl
               << std::endl;
 
     MyLogger::getInstance().splitLine();
-    MyLogger::getInstance().info("ISC procedure will execute " + std::to_string(loops) + " rounds.");
+    MyLogger::getInstance().info("ClickScript procedure will execute " + std::to_string(loops) + " rounds.");
 
     // ===== Execute loop and update progress =====
     std::cout << "Press Enter to start after 3 seconds...";
@@ -181,8 +181,8 @@ void System::startAutoclickScript()
         if (g_emergencyStop.load())
         {
             std::cout << "\n!!! EMERGENCY STOP TRIGGERED !!!" << std::endl;
-            std::cout << "ISC procedure stopped by user (ESC key)!" << std::endl;
-            MyLogger::getInstance().warning("ISC procedure emergency stopped at round " + std::to_string(i + 1));
+            std::cout << "ClickScript procedure stopped by user (ESC key)!" << std::endl;
+            MyLogger::getInstance().warning("ClickScript procedure emergency stopped at round " + std::to_string(i + 1));
 
             // Set progress bar to error state (red)
             if (taskbarInitialized)
@@ -197,8 +197,8 @@ void System::startAutoclickScript()
         // Check normal interrupt flag
         if (!g_isRunning.load())
         {
-            std::cout << "ISC procedure interrupted!" << std::endl;
-            MyLogger::getInstance().info("ISC procedure interrupted at round " + std::to_string(i + 1));
+            std::cout << "ClickScript procedure interrupted!" << std::endl;
+            MyLogger::getInstance().info("ClickScript procedure interrupted at round " + std::to_string(i + 1));
 
             if (taskbarInitialized)
             {
@@ -267,7 +267,7 @@ void System::startAutoclickScript()
     {
         setTaskbarProgressState(TBPF_NOPROGRESS);
     }
-    SetConsoleTitle("ISC - Ready");
+    SetConsoleTitle("ClickScript - Ready");
 
     // Stop all running flags
     g_isRunning.store(false);
@@ -282,8 +282,8 @@ void System::startAutoclickScript()
         cleanupTaskbarProgress();
     }
 
-    std::cout << "ISC procedure completed." << std::endl;
-    MyLogger::getInstance().info("ISC procedure completed.");
+    std::cout << "ClickScript procedure completed." << std::endl;
+    MyLogger::getInstance().info("ClickScript procedure completed.");
     MyLogger::getInstance().splitLine();
 
     // Reset console window handle
@@ -410,7 +410,7 @@ void System::updateTaskbarProgress(int current, int total)
         // Update window title with progress
         char title[256];
         sprintf_s(title, sizeof(title),
-                  "ISC - Progress: %d/%d (%.1f%%)",
+                  "ClickScript - Progress: %d/%d (%.1f%%)",
                   current, total, (float)current / total * 100);
         SetConsoleTitle(title);
     }
