@@ -6,6 +6,13 @@
 
 #define MAIN_RELEASE 1
 
+#include <iostream>
+#include <iostream>
+#include "MyLogger.h"
+#include "Config.h"
+#include "system.h"
+#include "clickscript.h"
+
 #if MAIN_RELEASE
 
 #include <iostream>
@@ -25,10 +32,12 @@ int main()
 
 #else
 
-#include <iostream>
-
 int main()
 {
+    Config config;
+    config.load();
+    config.print();
+    std::cout << "Path1: " << config.get("PATH_1") << std::endl;
+    return 0;
 }
-
 #endif

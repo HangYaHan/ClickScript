@@ -14,7 +14,7 @@ class Config
 {
 public:
     // Create configuration file
-    bool create(const std::string &filename);
+    bool create();
 
     // Load configuration file
     bool load();

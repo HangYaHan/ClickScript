@@ -1,7 +1,7 @@
 #include "Config.h"
 
 // Create configuration file
-bool Config::create(const std::string &filename)
+bool Config::create()
 {
     std::ofstream outfile(filename);
     this->filename = filename;
@@ -83,7 +83,7 @@ bool Config::save() const
 
 void Config::print() const
 {
-    std::cout << "Current Configuration:" << std::endl;
+    std::cout << "Configurations:" << std::endl;
     for (const auto &pair : configMap)
     {
         std::cout << pair.first << " = " << pair.second << std::endl;

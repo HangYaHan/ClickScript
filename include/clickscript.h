@@ -15,6 +15,9 @@
 #include "MyLogger.h"
 #include "system.h"
 
+// For file operations
+#include <filesystem>
+
 #define ERR_DELAY 300 // delay in milliseconds for error messages
 
 typedef enum
@@ -54,6 +57,8 @@ public:
     void print_ClickScript();
     int get_loops();
     Behavior parseCommandLine(const std::string &line);
+    int count_FilesInPath(const std::string &path);
+    void deleteLatestFileInPath(const std::string &path);
 
     // Simulate click && press functions
     void simulateLeftClick(const Point &point);

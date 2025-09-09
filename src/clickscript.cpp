@@ -1,5 +1,7 @@
 #include "clickscript.h"
 
+namespace fs = std::filesystem;
+
 void ClickScript::execute()
 {
     for (const auto &behavior : behaviors)
@@ -159,7 +161,7 @@ void ClickScript::print_ClickScript()
     system("cls");
     std::cout << "--- ClickScript Checklist ---" << std::endl;
     std::cout << "Loops: " << loops << std::endl;
-    std::cout << "---" << std::endl;
+    std::cout << "-----------------------------" << std::endl;
     for (const auto &behavior : behaviors)
     {
         switch (behavior.action)
@@ -180,10 +182,6 @@ void ClickScript::print_ClickScript()
             break;
         }
     }
-    std::cout << "-----------------------------" << std::endl;
-
-    std::cout << "Press any key to continue..." << std::endl;
-    std::cin.get();
 }
 
 Behavior ClickScript::parseCommandLine(const std::string &line)
@@ -270,4 +268,53 @@ int ClickScript::get_loops()
     std::cin >> loops;
     MyLogger::getInstance().debug("Retrieving number of loops: " + std::to_string(loops));
     return loops;
+}
+
+int ClickScript::count_FilesInPath(const std::string &path)
+{
+    int count = 0;
+    for (const auto &entry : fs::directory_iterator(path))
+    {
+        if (entry.is_regular_file())
+        {
+            ++count;
+        }
+    }
+    return count;
+}
+
+void ClickScript::deleteLatestFileInPath(const std::string &path)
+{
+    std::filesystem::directory_entry latestFile;
+    std::filesystem::file_time_type latestCreateTime;
+    bool found = false;
+    for (const auto &entry : fs::directory_iterator(path))
+    {
+        if (entry.is_regular_file())
+        {
+            auto ctime = fs::last_write_time(entry);
+            if (!found || ctime > latestCreateTime)
+            {
+                latestCreateTime = ctime;
+                latestFile = entry;
+                found = true;
+            }
+        }
+    }
+    if (found)
+    {
+        try
+        {
+            std::filesystem::remove(latestFile);
+            std::cout << "Deleted latest file: " << latestFile.path() << std::endl;
+        }
+        catch (const std::exception &e)
+        {
+            std::cerr << "Failed to delete latest file: " << e.what() << std::endl;
+        }
+    }
+    else
+    {
+        std::cout << "No file found to delete in path: " << path << std::endl;
+    }
 }

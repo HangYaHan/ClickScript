@@ -1,0 +1,3 @@
+PATH_2=.\\test\\test1
+PATH_1=.\\test\\test2
+Number_of_Files_Check=ENABLE

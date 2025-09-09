@@ -78,6 +78,10 @@ void System::executeChoice(int choice)
         system("cls");
         measureMousePosition();
         break;
+    case 3:
+        system("cls");
+        configInit();
+        break;
     case 99:
         system("cls");
         temporaryTask();
@@ -90,7 +94,8 @@ void System::executeChoice(int choice)
 
     // Pause to let the user see the result
     std::cout << "\nPress Enter to continue...";
-    std::cin.get();
+    std::cin.clear();
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 }
 
 void System::startAutoclickScript()
@@ -112,11 +117,18 @@ void System::startAutoclickScript()
     }
 
     int loops = 0;
+    std::string path1 = config.get("PATH_1");
+    std::string path2 = config.get("PATH_2");
 
     ClickScript.load_ClickScript_fromfile(filename);
     loops = ClickScript.get_loops();
     ClickScript.print_ClickScript();
-    MyLogger::getInstance().info("Autoclick script loaded.");
+    std::cout << "-----------------------------" << std::endl;
+    config.print();
+    std::cout << "-----------------------------" << std::endl;
+    std::cout << "Press Enter to confirm and start" << std::endl;
+    std::cin.clear();
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
     // Get console window handle
     g_consoleWindow = GetConsoleWindow();
@@ -230,8 +242,25 @@ void System::startAutoclickScript()
         {
             break; // Emergency stop check
         }
-    }
 
+        if (config.get("Number_of_Files_Check") == "ENABLE")
+        {
+            while (ClickScript.count_FilesInPath(path1) > ClickScript.count_FilesInPath(path2))
+            {
+                std::cout << "---" << std::endl;
+                std::cout << "Warning: Path1 has more files than Path2." << std::endl;
+                std::cout << "Execute auto-delete." << std::endl;
+                ClickScript.deleteLatestFileInPath(path1);
+            }
+            while (ClickScript.count_FilesInPath(path1) < ClickScript.count_FilesInPath(path2))
+            {
+                std::cout << "---" << std::endl;
+                std::cout << "Warning: Path2 has more files than Path1." << std::endl;
+                std::cout << "Execute auto-delete." << std::endl;
+                ClickScript.deleteLatestFileInPath(path2);
+            }
+        }
+    }
     // ===== Completion handling =====
     if (completedNormally && g_isRunning.load() && !g_emergencyStop.load())
     {
@@ -343,7 +372,7 @@ void System::measureMousePosition()
     std::string input;
     while (true)
     {
-        std::cout << "Press 'q' and Enter to quit, or just Enter to continue: ";
+        std::cout << "Press 'q' and Enter to quit, or just 'Enter' to continue: ";
         std::getline(std::cin, input);
         if (input == "q" || input == "Q")
         {
@@ -469,4 +498,38 @@ void System::escapeKeyListener()
     }
 
     std::cout << "Emergency stop monitor thread terminated." << std::endl;
+}
+
+void System::configInit()
+{
+    if (config.load())
+    {
+        std::cout << "Configuration loaded successfully." << std::endl;
+        config.print();
+    }
+    else
+    {
+        std::cout << "Failed to load configuration file." << std::endl;
+        std::cout << "Creating default configuration file..." << std::endl;
+        if (config.create())
+        {
+            std::cout << "Default configuration file created successfully." << std::endl;
+            config.set("Number_of_Files_Check", "DISABLE");
+            config.set("PATH_1", ".\\PATH1");
+            config.set("PATH_2", ".\\PATH2");
+            config.save();
+            std::cout << "------------------------------" << std::endl;
+            std::cout << "Number_of_Files_Check = DISABLE" << std::endl;
+            std::cout << "PATH_1 = .\\PATH1" << std::endl;
+            std::cout << "PATH_2 = .\\PATH2" << std::endl;
+            std::cout << "------------------------------" << std::endl;
+            std::cout << "Configuration file intialized with default values." << std::endl;
+            std::cout << "Please edit the configuration file and reload the configuration." << std::endl;
+        }
+        else
+        {
+            std::cout << "Failed to create configuration file." << std::endl;
+            std::cout << "Fatal error, exiting..." << std::endl;
+        }
+    }
 }

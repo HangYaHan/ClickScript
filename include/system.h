@@ -43,6 +43,7 @@ public:
 
     void startAutoclickScript(); // Task 1
     void measureMousePosition(); // Task 2 Measure mouse position
+    void configInit();           // Task 3 Config initialization
     void temporaryTask();        // Task 99 Test only
 
     void printSplitLine();
