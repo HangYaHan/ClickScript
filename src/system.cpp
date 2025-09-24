@@ -82,10 +82,6 @@ void System::executeChoice(int choice)
         system("cls");
         configInit();
         break;
-    case 99:
-        system("cls");
-        temporaryTask();
-        break;
     default:
         system("cls");
         std::cout << "Invalid choice. Please try again." << std::endl;
@@ -182,12 +178,54 @@ void System::startAutoclickScript()
     MyLogger::getInstance().info("ClickScript procedure will execute " + std::to_string(loops) + " rounds.");
 
     // ===== Execute loop and update progress =====
-    std::cout << "Press Enter to start after 3 seconds...";
-    getchar();
-    countdown(3);
+    int waitSeconds = 5;
+    std::string inputTime;
+    std::cout << "Please enter the start time (HH MM, e.g. 16 45), or press Enter to start after 5 seconds: ";
+    std::getline(std::cin, inputTime);
+    int targetHour = -1, targetMin = -1;
+    bool validTime = false;
+    if (!inputTime.empty())
+    {
+        std::istringstream iss(inputTime);
+        if (iss >> targetHour >> targetMin)
+        {
+            if (targetHour >= 0 && targetHour < 24 && targetMin >= 0 && targetMin < 60)
+            {
+                validTime = true;
+            }
+        }
+    }
+    if (validTime)
+    {
+        std::cout << "Waiting until " << (targetHour < 10 ? "0" : "") << targetHour << ":" << (targetMin < 10 ? "0" : "") << targetMin << " to start..." << std::endl;
+        while (true)
+        {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            auto now = std::chrono::system_clock::now();
+            std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+            struct tm local_tm;
+#ifdef _WIN32
+            localtime_s(&local_tm, &now_c);
+#else
+            local_tm = *std::localtime(&now_c);
+#endif
+            if (local_tm.tm_hour > targetHour || (local_tm.tm_hour == targetHour && local_tm.tm_min >= targetMin))
+            {
+                break;
+            }
+        }
+        std::cout << "Time reached. Starting now!" << std::endl;
+    }
+    else
+    {
+        std::cout << "Press Enter to start countdown...";
+        std::cin.clear();
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        countdown(waitSeconds);
+    }
     bool completedNormally = true;
 
-    for (int i = 0; i < loops; i++)
+    for (int i = 0; i < loops; i++, ClickScript.setCurrentLoop(i))
     {
         // ===== Check emergency stop flag =====
         if (g_emergencyStop.load())

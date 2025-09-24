@@ -26,6 +26,7 @@ typedef enum
     RIGHT_CLICK,
     ENTER_KEY,
     DELAY,
+    LOOP_NUMBER_KEY,
     NONE
 } Action;
 
@@ -40,6 +41,7 @@ typedef struct
     Point point;   // Click position
     char key = -1; // Key to simulate click
     int delay = -1;
+    bool loop_number_input = false; // True if stimulate loop number keyboard input
 
     Action action = NONE;
 } Behavior;
@@ -60,16 +62,21 @@ public:
     int count_FilesInPath(const std::string &path);
     void deleteLatestFileInPath(const std::string &path);
 
+    int getCurrentLoop() const { return current_loop; }
+    void setCurrentLoop(int x) { current_loop = x; }
+
     // Simulate click && press functions
     void simulateLeftClick(const Point &point);
     void simulateRightClick(const Point &point);
     void simulateEnterKey(const char &key);
     void simulateDelay(int delay);
+    void stimulateLoopNumberInput();
 
 private:
     std::string filename;
     std::string description;
     std::vector<Behavior> behaviors;
     int loops = 0;
+    int current_loop = 0;
 };
 #endif // CLICKSCRIPT_H

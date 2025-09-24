@@ -1,8 +1,5 @@
 This is a testfile for ISC project.
 #start
-LEFT 100 300
 DELAY 300
-ENTER
-LEFT 100 300
-DELAY 500
+LOOP_NUMBER_KEY
 #end

@@ -24,12 +24,41 @@ void ClickScript::execute()
             // Wait for behavior.delay milliseconds
             simulateDelay(behavior.delay);
             break;
+        case LOOP_NUMBER_KEY:
+            // Simulate loop number keyboard input
+            stimulateLoopNumberInput();
+            break;
         case NONE:
         default:
             // Do nothing
             MyLogger::getInstance().warning("Unknown action in ClickScript.");
             break;
         }
+    }
+}
+
+void ClickScript::stimulateLoopNumberInput()
+{
+    if (current_loop <= 0)
+    {
+        MyLogger::getInstance().error("Invalid loop count for LOOP_NUMBER_KEY input.");
+        return;
+    }
+
+    std::string loopStr = std::to_string(current_loop);
+    for (char ch : loopStr)
+    {
+        SHORT vk = VkKeyScan(ch);
+        if (vk == -1)
+        {
+            MyLogger::getInstance().error("Failed to map character to virtual key: " + std::string(1, ch));
+            continue;
+        }
+
+        // Simulate key press
+        keybd_event(static_cast<BYTE>(vk), 0, 0, 0);               // Key down
+        keybd_event(static_cast<BYTE>(vk), 0, KEYEVENTF_KEYUP, 0); // Key up
+        // Sleep(50);                                                 // Short delay between key presses
     }
 }
 
@@ -178,6 +207,9 @@ void ClickScript::print_ClickScript()
         case ENTER_KEY:
             std::cout << "Press Enter" << std::endl;
             break;
+        case LOOP_NUMBER_KEY:
+            std::cout << "stimulate LOOP_NUMBER_KEY input" << std::endl;
+            break;
         default:
             break;
         }
@@ -251,6 +283,12 @@ Behavior ClickScript::parseCommandLine(const std::string &line)
         behavior.action = ENTER_KEY;
         behavior.key = '\n'; // or '\r'
         MyLogger::getInstance().debug("Parsed ENTER key press");
+    }
+    else if (command == "LOOP_NUMBER_KEY")
+    {
+        behavior.action = LOOP_NUMBER_KEY;
+        behavior.loop_number_input = true;
+        MyLogger::getInstance().debug("Parsed LOOP number input");
     }
     else
     {
